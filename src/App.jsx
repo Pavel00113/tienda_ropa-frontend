@@ -1,121 +1,56 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { CarritoProvider } from './context/CarritoContext';
+import useAuth from './hooks/useAuth';
+import CarritoDrawer   from './components/carrito/CarritoDrawer';
+import Navbar          from './components/layout/Navbar';
+import Sidebar         from './components/layout/Sidebar';
+import Footer          from './components/layout/Footer';
+import Home            from './pages/Home';
+import ProductoDetalle from './pages/ProductoDetalle';
+import Carrito         from './pages/Carrito';
+import Pedidos         from './pages/Pedidos';
+import Login           from './pages/auth/Login';
+import Register        from './pages/auth/Register';
+import Dashboard       from './pages/admin/Dashboard';
+import AdminProductos  from './pages/admin/Productos';
+import AdminPedidos    from './pages/admin/Pedidos';
 
-function App() {
-  const [count, setCount] = useState(0)
+const ProtectedRoute = ({ children }) => {
+  const { usuario } = useAuth();
+  return usuario ? children : <Navigate to="/login" />;
+};
 
+const AdminRoute = ({ children }) => {
+  const { usuario } = useAuth();
+  return usuario?.rol === 'admin' ? children : <Navigate to="/" />;
+};
+
+export default function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <BrowserRouter>
+      <CarritoProvider>
+        <CarritoDrawer />
+        <div className="flex min-h-screen bg-gray-50">
+          <Sidebar />
+          <div className="flex flex-col flex-1">
+            <Navbar />
+            <main className="flex-1 p-4">
+              <Routes>
+                <Route path="/"                element={<Home />} />
+                <Route path="/producto/:id"    element={<ProductoDetalle />} />
+                <Route path="/login"           element={<Login />} />
+                <Route path="/register"        element={<Register />} />
+                <Route path="/carrito"         element={<ProtectedRoute><Carrito /></ProtectedRoute>} />
+                <Route path="/pedidos"         element={<ProtectedRoute><Pedidos /></ProtectedRoute>} />
+                <Route path="/admin"           element={<AdminRoute><Dashboard /></AdminRoute>} />
+                <Route path="/admin/productos" element={<AdminRoute><AdminProductos /></AdminRoute>} />
+                <Route path="/admin/pedidos"   element={<AdminRoute><AdminPedidos /></AdminRoute>} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      </CarritoProvider>
+    </BrowserRouter>
+  );
 }
-
-export default App
