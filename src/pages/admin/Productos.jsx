@@ -3,13 +3,18 @@ import api from '../../services/api';
 
 export default function AdminProductos() {
   const [productos, setProductos] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [form, setForm]           = useState({
-    nombre: '', descripcion: '', precio: '', precio_oferta: '',
-    categoria_id: '', destacado: false
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({
+    nombre: '',
+    descripcion: '',
+    precio: '',
+    precio_oferta: '',
+    categoria_id: '',
+    destacado: false
   });
-  const [editando, setEditando]   = useState(null);
-  const [msg, setMsg]             = useState('');
+  const [editando, setEditando] = useState(null);
+  const [imagen, setImagen] = useState(null); // 👈 NUEVO
+  const [msg, setMsg] = useState('');
 
   const fetchProductos = () => {
     api.get('/productos')
@@ -17,24 +22,47 @@ export default function AdminProductos() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchProductos(); }, []);
+  useEffect(() => {
+    fetchProductos();
+  }, []);
 
   const handleChange = e => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm({ ...form, [e.target.name]: val });
   };
 
+  // 👈 handleSubmit actualizado para enviar FormData con imagen
   const handleSubmit = async e => {
     e.preventDefault();
     try {
+      const formData = new FormData();
+      formData.append('nombre', form.nombre);
+      formData.append('descripcion', form.descripcion);
+      formData.append('precio', form.precio);
+      formData.append('precio_oferta', form.precio_oferta);
+      formData.append('categoria_id', form.categoria_id);
+      formData.append('destacado', form.destacado);
+      if (imagen) {
+        formData.append('imagen', imagen);
+      }
+
       if (editando) {
-        await api.put(`/productos/${editando}`, form);
+        await api.put(`/productos/${editando}`, formData);
         setMsg('✓ Producto actualizado');
       } else {
-        await api.post('/productos', form);
+        await api.post('/productos', formData);
         setMsg('✓ Producto creado');
       }
-      setForm({ nombre: '', descripcion: '', precio: '', precio_oferta: '', categoria_id: '', destacado: false });
+
+      setForm({
+        nombre: '',
+        descripcion: '',
+        precio: '',
+        precio_oferta: '',
+        categoria_id: '',
+        destacado: false
+      });
+      setImagen(null);
       setEditando(null);
       fetchProductos();
     } catch {
@@ -45,10 +73,14 @@ export default function AdminProductos() {
   const handleEditar = p => {
     setEditando(p.id);
     setForm({
-      nombre: p.nombre, descripcion: p.descripcion || '',
-      precio: p.precio, precio_oferta: p.precio_oferta || '',
-      categoria_id: p.categoria_id || '', destacado: p.destacado
+      nombre: p.nombre,
+      descripcion: p.descripcion || '',
+      precio: p.precio,
+      precio_oferta: p.precio_oferta || '',
+      categoria_id: p.categoria_id || '',
+      destacado: p.destacado
     });
+    setImagen(null); // limpia preview al editar
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -73,16 +105,27 @@ export default function AdminProductos() {
             {msg}
           </div>
         )}
+
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-            <input name="nombre" value={form.nombre} onChange={handleChange} required
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <input
+              name="nombre"
+              value={form.nombre}
+              onChange={handleChange}
+              required
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-            <select name="categoria_id" value={form.categoria_id} onChange={handleChange}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none">
+            <select
+              name="categoria_id"
+              value={form.categoria_id}
+              onChange={handleChange}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+            >
               <option value="">Sin categoría</option>
               <option value="1">Hombre - Casacas</option>
               <option value="2">Hombre - Polares</option>
@@ -93,35 +136,90 @@ export default function AdminProductos() {
               <option value="7">Ofertas</option>
             </select>
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Precio *</label>
-            <input name="precio" type="number" value={form.precio} onChange={handleChange} required
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <input
+              name="precio"
+              type="number"
+              value={form.precio}
+              onChange={handleChange}
+              required
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Precio oferta</label>
-            <input name="precio_oferta" type="number" value={form.precio_oferta} onChange={handleChange}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <input
+              name="precio_oferta"
+              type="number"
+              value={form.precio_oferta}
+              onChange={handleChange}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
           </div>
+
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-            <textarea name="descripcion" value={form.descripcion} onChange={handleChange} rows={3}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+            <textarea
+              name="descripcion"
+              value={form.descripcion}
+              onChange={handleChange}
+              rows={3}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
           </div>
+
+          {/* 👈 NUEVO: campo de imagen con preview */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Imagen del producto
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImagen(e.target.files[0])}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            />
+            {imagen && (
+              <img
+                src={URL.createObjectURL(imagen)}
+                alt="preview"
+                className="mt-2 w-32 h-32 object-cover rounded-lg"
+              />
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
-            <input type="checkbox" name="destacado" id="destacado"
-              checked={form.destacado} onChange={handleChange}
-              className="w-4 h-4 accent-gray-900" />
+            <input
+              type="checkbox"
+              name="destacado"
+              id="destacado"
+              checked={form.destacado}
+              onChange={handleChange}
+              className="w-4 h-4 accent-gray-900"
+            />
             <label htmlFor="destacado" className="text-sm text-gray-700">Producto destacado</label>
           </div>
+
           <div className="md:col-span-2 flex gap-3">
-            <button type="submit"
-              className="bg-gray-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-gray-700">
+            <button
+              type="submit"
+              className="bg-gray-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-gray-700"
+            >
               {editando ? 'Actualizar' : 'Crear producto'}
             </button>
             {editando && (
-              <button type="button" onClick={() => { setEditando(null); setForm({ nombre: '', descripcion: '', precio: '', precio_oferta: '', categoria_id: '', destacado: false }); }}
-                className="border border-gray-200 text-gray-600 px-6 py-2 rounded-lg text-sm hover:bg-gray-50">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditando(null);
+                  setImagen(null);
+                  setForm({ nombre: '', descripcion: '', precio: '', precio_oferta: '', categoria_id: '', destacado: false });
+                }}
+                className="border border-gray-200 text-gray-600 px-6 py-2 rounded-lg text-sm hover:bg-gray-50"
+              >
                 Cancelar
               </button>
             )}
@@ -152,12 +250,16 @@ export default function AdminProductos() {
                 <p className="text-sm text-gray-400">{p.categoria_nombre} · S/ {p.precio}</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => handleEditar(p)}
-                  className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <button
+                  onClick={() => handleEditar(p)}
+                  className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
                   Editar
                 </button>
-                <button onClick={() => handleEliminar(p.id)}
-                  className="text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100">
+                <button
+                  onClick={() => handleEliminar(p.id)}
+                  className="text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
+                >
                   Eliminar
                 </button>
               </div>

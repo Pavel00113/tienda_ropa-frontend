@@ -11,7 +11,7 @@ export default function Navbar() {
   return (
     <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
       <Link to="/" className="text-xl font-bold tracking-tight text-gray-900">
-        MOTTA STORE
+        ATTOM STORE
       </Link>
 
       <div className="flex items-center gap-4">
