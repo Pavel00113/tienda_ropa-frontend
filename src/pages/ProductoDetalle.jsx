@@ -23,24 +23,27 @@ export default function ProductoDetalle() {
   }, [id]);
 
   const handleAgregar = async () => {
-    if (!usuario) return navigate('/login');
-    if (!tallaSeleccionada) return setMsg('Selecciona una talla');
+  if (!usuario) return navigate('/login');
 
-    const invItem = producto.inventario.find(
-      i => i.talla === tallaSeleccionada && i.stock > 0
-    );
-    if (!invItem) return setMsg('Sin stock para esa talla');
+  if (producto.maneja_tallas && !tallaSeleccionada)
+    return setMsg('Selecciona una talla');
 
-    setAgregando(true);
-    try {
-      await agregar(invItem.id, 1);
-      setMsg('✓ Agregado al carrito');
-    } catch {
-      setMsg('Error al agregar');
-    } finally {
-      setAgregando(false);
-    }
-  };
+  const invItem = producto.maneja_tallas
+    ? producto.inventario.find(i => i.talla === tallaSeleccionada && i.stock > 0)
+    : producto.inventario.find(i => i.stock > 0);
+
+  if (!invItem) return setMsg('Sin stock disponible');
+
+  setAgregando(true);
+  try {
+    await agregar(invItem.id, 1);
+    setMsg('✓ Agregado al carrito');
+  } catch {
+    setMsg('Error al agregar');
+  } finally {
+    setAgregando(false);
+  }
+};
 
   if (loading) return (
     <div className="max-w-4xl mx-auto p-8">
@@ -111,26 +114,27 @@ export default function ProductoDetalle() {
             )}
 
             {/* Tallas */}
-            {tallasDisponibles.length > 0 && (
-              <div className="mb-6">
-                <p className="text-sm font-medium text-gray-700 mb-2">Talla</p>
-                <div className="flex gap-2 flex-wrap">
-                  {tallasDisponibles.map(inv => (
-                    <button
-                      key={inv.id}
-                      onClick={() => { setTalla(inv.talla); setMsg(''); }}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        tallaSeleccionada === inv.talla
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'border-gray-200 text-gray-700 hover:border-gray-900'
-                      }`}
-                    >
-                      {inv.talla}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {producto.maneja_tallas && tallasDisponibles.length > 0 && (
+  <div className="mb-6">
+    <p className="text-sm font-medium text-gray-700 mb-2">Talla</p>
+    <div className="flex gap-2 flex-wrap">
+      {tallasDisponibles.map(inv => (
+        <button key={inv.id}
+          onClick={() => { setTalla(inv.talla); setMsg(''); }}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            tallaSeleccionada === inv.talla
+              ? 'bg-gray-900 text-white border-gray-900'
+              : 'border-gray-200 text-gray-700 hover:border-gray-900'
+          }`}>
+          {inv.talla}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+{!producto.maneja_tallas && (
+  <p className="text-sm text-gray-500 mb-6">Talla única disponible</p>
+)}
           </div>
 
           <div>
