@@ -1,26 +1,30 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 
+const TALLAS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
 export default function AdminProductos() {
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
-    nombre: '',
-    descripcion: '',
-    precio: '',
-    precio_oferta: '',
-    categoria_id: '',
-    destacado: false,
-    maneja_tallas: false
+    nombre: '', descripcion: '', precio: '', precio_oferta: '',
+    categoria_id: '', destacado: false, maneja_tallas: false
   });
+  const [inventario, setInventario] = useState(
+    TALLAS.map(t => ({ talla: t, stock: 0 }))
+  );
+  const [stockUnico, setStockUnico] = useState(0);
   const [editando, setEditando] = useState(null);
   const [imagen, setImagen] = useState(null);
   const [msg, setMsg] = useState('');
 
-  const resetForm = () => setForm({
-    nombre: '', descripcion: '', precio: '', precio_oferta: '',
-    categoria_id: '', destacado: false, maneja_tallas: false
-  });
+  const resetForm = () => {
+    setForm({ nombre: '', descripcion: '', precio: '', precio_oferta: '', categoria_id: '', destacado: false, maneja_tallas: false });
+    setInventario(TALLAS.map(t => ({ talla: t, stock: 0 })));
+    setStockUnico(0);
+    setImagen(null);
+    setEditando(null);
+  };
 
   const fetchProductos = () => {
     api.get('/productos')
@@ -35,48 +39,65 @@ export default function AdminProductos() {
     setForm({ ...form, [e.target.name]: val });
   };
 
+  const handleStockChange = (talla, stock) => {
+    setInventario(prev => prev.map(i => i.talla === talla ? { ...i, stock: parseInt(stock) || 0 } : i));
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     try {
       const formData = new FormData();
-      formData.append('nombre', form.nombre);
-      formData.append('descripcion', form.descripcion);
-      formData.append('precio', form.precio);
-      formData.append('precio_oferta', form.precio_oferta);
-      formData.append('categoria_id', form.categoria_id);
-      formData.append('destacado', form.destacado);
-      formData.append('maneja_tallas', form.maneja_tallas);
+      Object.entries(form).forEach(([k, v]) => formData.append(k, v));
       if (imagen) formData.append('imagen', imagen);
 
+      let productoId = editando;
       if (editando) {
         await api.put(`/productos/${editando}`, formData);
         setMsg('✓ Producto actualizado');
       } else {
-        await api.post('/productos', formData);
+        const res = await api.post('/productos', formData);
+        productoId = res.data.id;
         setMsg('✓ Producto creado');
       }
 
+      // Guardar inventario
+      const items = form.maneja_tallas
+        ? inventario
+        : [{ talla: 'L', stock: parseInt(stockUnico) || 0 }];
+
+      await api.put(`/productos/${productoId}/inventario`, { items });
+
       resetForm();
-      setImagen(null);
-      setEditando(null);
       fetchProductos();
     } catch {
       setMsg('Error al guardar');
     }
   };
 
-  const handleEditar = p => {
+  const handleEditar = async p => {
     setEditando(p.id);
     setForm({
-      nombre: p.nombre,
-      descripcion: p.descripcion || '',
-      precio: p.precio,
-      precio_oferta: p.precio_oferta || '',
-      categoria_id: p.categoria_id || '',
-      destacado: p.destacado,
+      nombre: p.nombre, descripcion: p.descripcion || '',
+      precio: p.precio, precio_oferta: p.precio_oferta || '',
+      categoria_id: p.categoria_id || '', destacado: p.destacado,
       maneja_tallas: p.maneja_tallas || false
     });
     setImagen(null);
+
+    // Cargar inventario actual del producto
+    try {
+      const res = await api.get(`/productos/${p.id}`);
+      const inv = res.data.inventario || [];
+      if (p.maneja_tallas) {
+        setInventario(TALLAS.map(t => {
+          const found = inv.find(i => i.talla === t);
+          return { talla: t, stock: found ? found.stock : 0 };
+        }));
+      } else {
+        setStockUnico(inv[0]?.stock || 0);
+      }
+    } catch {}
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -141,29 +162,51 @@ export default function AdminProductos() {
 
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Imagen del producto</label>
-            <input type="file" accept="image/*" onChange={(e) => setImagen(e.target.files[0])}
+            <input type="file" accept="image/*" onChange={e => setImagen(e.target.files[0])}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
-            {imagen && (
-              <img src={URL.createObjectURL(imagen)} alt="preview"
-                className="mt-2 w-32 h-32 object-cover rounded-lg" />
-            )}
+            {imagen && <img src={URL.createObjectURL(imagen)} alt="preview" className="mt-2 w-32 h-32 object-cover rounded-lg" />}
           </div>
 
           {/* Checkboxes */}
           <div className="flex items-center gap-2">
             <input type="checkbox" name="destacado" id="destacado"
-              checked={form.destacado} onChange={handleChange}
-              className="w-4 h-4 accent-gray-900" />
+              checked={form.destacado} onChange={handleChange} className="w-4 h-4 accent-gray-900" />
             <label htmlFor="destacado" className="text-sm text-gray-700">Producto destacado</label>
           </div>
 
           <div className="flex items-center gap-2">
             <input type="checkbox" name="maneja_tallas" id="maneja_tallas"
-              checked={form.maneja_tallas} onChange={handleChange}
-              className="w-4 h-4 accent-gray-900" />
-            <label htmlFor="maneja_tallas" className="text-sm text-gray-700">
-              Maneja tallas (S, M, L, XL...)
+              checked={form.maneja_tallas} onChange={handleChange} className="w-4 h-4 accent-gray-900" />
+            <label htmlFor="maneja_tallas" className="text-sm text-gray-700">Maneja tallas</label>
+          </div>
+
+          {/* Inventario */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {form.maneja_tallas ? 'Stock por talla' : 'Stock disponible'}
             </label>
+
+            {form.maneja_tallas ? (
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                {inventario.map(({ talla, stock }) => (
+                  <div key={talla} className="text-center">
+                    <p className="text-xs font-medium text-gray-600 mb-1">{talla}</p>
+                    <input
+                      type="number" min="0" value={stock}
+                      onChange={e => handleStockChange(talla, e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <input
+                type="number" min="0" value={stockUnico}
+                onChange={e => setStockUnico(e.target.value)}
+                placeholder="Cantidad disponible"
+                className="w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            )}
           </div>
 
           <div className="md:col-span-2 flex gap-3">
@@ -172,8 +215,7 @@ export default function AdminProductos() {
               {editando ? 'Actualizar' : 'Crear producto'}
             </button>
             {editando && (
-              <button type="button"
-                onClick={() => { setEditando(null); setImagen(null); resetForm(); }}
+              <button type="button" onClick={resetForm}
                 className="border border-gray-200 text-gray-600 px-6 py-2 rounded-lg text-sm hover:bg-gray-50">
                 Cancelar
               </button>
@@ -182,12 +224,11 @@ export default function AdminProductos() {
         </form>
       </div>
 
+      {/* Lista */}
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Productos ({productos.length})</h2>
       {loading ? (
         <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-gray-100 rounded-xl h-16 animate-pulse" />
-          ))}
+          {[...Array(3)].map((_, i) => <div key={i} className="bg-gray-100 rounded-xl h-16 animate-pulse" />)}
         </div>
       ) : (
         <div className="space-y-3">
@@ -196,8 +237,7 @@ export default function AdminProductos() {
               <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center flex-shrink-0">
                 {p.imagen_principal
                   ? <img src={p.imagen_principal} alt={p.nombre} className="w-full h-full object-cover rounded-lg" />
-                  : <span className="text-xl">👕</span>
-                }
+                  : <span className="text-xl">👕</span>}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800 truncate">{p.nombre}</p>
@@ -208,13 +248,9 @@ export default function AdminProductos() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleEditar(p)}
-                  className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
-                  Editar
-                </button>
+                  className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Editar</button>
                 <button onClick={() => handleEliminar(p.id)}
-                  className="text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100">
-                  Eliminar
-                </button>
+                  className="text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100">Eliminar</button>
               </div>
             </div>
           ))}
